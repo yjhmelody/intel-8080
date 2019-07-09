@@ -43,6 +43,11 @@ impl CPU {
     }
 
     #[inline]
+    pub fn set_pc(&mut self, pc: u16) {
+        self.pc = pc;
+    }
+
+    #[inline]
     pub fn sp(&self) -> usize {
         self.sp as usize
     }
@@ -53,12 +58,17 @@ impl CPU {
     }
 
     #[inline]
-    pub fn data(&self) -> Vec<u8> {
-        self.data.clone()
+    pub fn set_value(&mut self, addr: usize, val: u8) {
+        self.data[addr] = val;
     }
 
     #[inline]
-    fn make_address(val1: u8, val2: u8) -> usize {
+    pub fn get_value(&self, addr: usize) -> u8 {
+        self.data[addr]
+    }
+
+    #[inline]
+    pub fn make_address(val1: u8, val2: u8) -> usize {
         (val1 as usize) << 8 | (val2 as usize)
     }
 
@@ -187,14 +197,14 @@ impl CPU {
     }
 
     fn stack_push_u8(&mut self, val: u8) {
-        self.sp -= 1;
+        self.sp = self.sp.wrapping_sub(1);
         let sp = self.sp();
         self.data[sp] = val;
     }
 
     fn stack_pop_u8(&mut self) -> u8 {
         let res = self.data[self.sp()];
-        self.sp += 1;
+        self.sp = self.sp.wrapping_add(1);
         res
     }
 
@@ -217,9 +227,9 @@ impl CPU {
 
     #[inline]
     fn op_call(&mut self) {
-        self.stack_push(self.pc);
         let val1 = self.data[self.pc() - 2];
         let val2 = self.data[self.pc() - 1];
+        self.stack_push(self.pc);
         self.pc = Self::compose_to_u16(val2, val1);
     }
 
@@ -229,6 +239,11 @@ impl CPU {
 
     fn device_output(&mut self, device: &mut Device, port: u8, data: u8) {
         device.output(port, data);
+    }
+
+    #[inline]
+    pub fn is_halted(&self) -> bool {
+        self.halted
     }
 
     pub fn execute(&mut self, opcode: Opcode) {
@@ -292,7 +307,7 @@ impl CPU {
                     self.registers[reg1] = val1;
                     self.registers[reg2] = val2;
                 } else {
-                    self.sp += 1;
+                    self.sp = self.sp.wrapping_add(1);
                 }
                 self.pc += 1;
             }
@@ -425,7 +440,7 @@ impl CPU {
                     self.registers[reg1] = val1;
                     self.registers[reg2] = val2;
                 } else {
-                    self.sp -= 1;
+                    self.sp = self.sp.wrapping_sub(1);
                 }
                 self.pc += 1;
             }
@@ -922,8 +937,9 @@ impl CPU {
                 }
                 // ana
                 else if alu == 0b1010_0000 {
-                    self.acc &= data;
                     self.flag.set_carry_flag(false);
+                    self.flag.set_auxiliary_carry_flag(((self.acc | data) & 0x08) != 0);
+                    self.acc &= data;
                     self.update_zero_flag(self.acc);
                     self.update_sign_flag(self.acc);
                     self.update_parity_flag(self.acc);
@@ -932,6 +948,7 @@ impl CPU {
                 else if alu == 0b1010_1000 {
                     self.acc ^= data;
                     self.flag.set_carry_flag(false);
+                    self.flag.set_auxiliary_carry_flag(false);
                     self.update_zero_flag(self.acc);
                     self.update_sign_flag(self.acc);
                     self.update_parity_flag(self.acc);
@@ -940,6 +957,7 @@ impl CPU {
                 else if alu == 0b1011_0000 {
                     self.acc |= data;
                     self.flag.set_carry_flag(false);
+                    self.flag.set_auxiliary_carry_flag(false);
                     self.update_zero_flag(self.acc);
                     self.update_sign_flag(self.acc);
                     self.update_parity_flag(self.acc);
@@ -962,7 +980,6 @@ impl CPU {
         if self.interrupted {
             self.interrupted = false;
             self.stack_push(self.pc);
-
         }
     }
 

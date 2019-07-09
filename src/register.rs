@@ -47,7 +47,7 @@ pub enum Register {
     Acc = 0b111,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Flag(u8);
 
 impl Default for Flag {

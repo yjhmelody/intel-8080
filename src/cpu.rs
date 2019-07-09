@@ -16,6 +16,11 @@ pub struct CPU {
     halted: bool,
 }
 
+pub trait Device {
+    fn input(&mut self, port: u8) -> u8;
+    fn output(&mut self, port: u8, data: u8);
+}
+
 impl CPU {
     #[inline]
     pub fn new(data: Vec<u8>) -> Self {
@@ -216,6 +221,14 @@ impl CPU {
         let val1 = self.data[self.pc() - 2];
         let val2 = self.data[self.pc() - 1];
         self.pc = Self::compose_to_u16(val2, val1);
+    }
+
+    fn device_input(&mut self, device: &mut Device, port: u8) -> u8 {
+        device.input(port)
+    }
+
+    fn device_output(&mut self, device: &mut Device, port: u8, data: u8) {
+        device.output(port, data);
     }
 
     pub fn execute(&mut self, opcode: Opcode) {
@@ -960,7 +973,6 @@ impl CPU {
             return;
         }
         self.execute(Opcode::from(self.data[self.pc()]));
-        self.handle_interrupt();
     }
 
     pub fn handle_interrupt(&mut self) {

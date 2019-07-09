@@ -109,7 +109,7 @@ impl CPU {
 
     #[inline]
     fn set_jump_pc(&mut self) {
-        self.pc = Self::compose_to_u16(self.data[self.pc() + 2], self.data[self.pc() + 1]);
+        self.pc = Self::compose_to_u16(self.data[self.pc() - 1], self.data[self.pc() - 2]);
     }
 
     #[inline]
@@ -135,10 +135,8 @@ impl CPU {
     #[inline]
     fn update_zero_flag(&mut self, val: u8) {
         if val == 0 {
-            dbg!(val);
             self.flag.set_zero_flag(true);
         } else {
-            dbg!(val);
             self.flag.set_zero_flag(false);
         }
     }
@@ -660,52 +658,61 @@ impl CPU {
             }
 
             Opcode::JMP => {
+                self.pc += 3;
                 self.set_jump_pc();
             }
 
             Opcode::JC => {
+                self.pc += 3;
                 if self.flag.carry_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JNC => {
+                self.pc += 3;
                 if !self.flag.carry_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JZ => {
+                self.pc += 3;
                 if self.flag.zero_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JNZ => {
+                self.pc += 3;
                 if !self.flag.zero_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JM => {
+                self.pc += 3;
                 if self.flag.sign_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JP => {
+                self.pc += 3;
                 if !self.flag.sign_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JPE => {
+                self.pc += 3;
                 if self.flag.parity_flag() {
                     self.set_jump_pc();
                 }
             }
 
             Opcode::JPO => {
+                self.pc += 3;
                 if !self.flag.parity_flag() {
                     self.set_jump_pc();
                 }
@@ -773,51 +780,60 @@ impl CPU {
             }
 
             Opcode::RET => {
+                self.pc += 1;
                 self.op_return();
             }
 
             Opcode::RC => {
+                self.pc += 1;
                 if self.flag.carry_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RNC => {
+                self.pc += 1;
                 if !self.flag.carry_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RZ => {
+                self.pc += 1;
                 if self.flag.zero_flag() {
                     self.op_return();
                 }
             }
             Opcode::RNZ => {
+                self.pc += 1;
                 if !self.flag.zero_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RM => {
+                self.pc += 1;
                 if self.flag.sign_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RP => {
+                self.pc += 1;
                 if !self.flag.sign_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RPE => {
+                self.pc += 1;
                 if self.flag.parity_flag() {
                     self.op_return();
                 }
             }
 
             Opcode::RPO => {
+                self.pc += 1;
                 if !self.flag.parity_flag() {
                     self.op_return();
                 }

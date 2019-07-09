@@ -960,6 +960,7 @@ impl CPU {
             return;
         }
         self.execute(Opcode::from(self.data[self.pc()]));
+        self.handle_interrupt();
     }
 
     pub fn handle_interrupt(&mut self) {

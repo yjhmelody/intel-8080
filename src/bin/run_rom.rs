@@ -35,28 +35,28 @@ fn run_rom(path: impl AsRef<Path>) -> Result<()> {
         }
         cpu.run_once();
 
-//        if cpu.pc() == 0x05 {
-//            let c = cpu.registers[Register::C as usize];
-//            if c == 0x09 {
-//                let d = cpu.registers[Register::D as usize];
-//                let e = cpu.registers[Register::E as usize];
-//                let mut a = CPU::make_address(d, e);
-//                loop {
-//                    let ch = cpu.get_value(a);
-//                    if ch as char == '$' {
-//                        break;
-//                    } else {
-//                        a = a.wrapping_add(1);
-//                    }
-//                    print!("{}", c as char);
-//                }
-//            } else if c == 0x02 {
-//                print!("{}", cpu.registers[Register::E as usize] as char);
-//            }
-//        }
-//
+        if cpu.pc() == 0x05 {
+            let c = cpu.registers[Register::C as usize];
+            if c == 0x09 {
+                let d = cpu.registers[Register::D as usize];
+                let e = cpu.registers[Register::E as usize];
+                let mut a = CPU::make_address(d, e) as u16;
+                loop {
+                    let ch = cpu.get_value(a as usize);
+                    if ch as char == '$' {
+                        break;
+                    } else {
+                        a = a.wrapping_add(1);
+                    }
+                    print!("{}", c as char);
+                }
+            } else if c == 0x02 {
+                print!("{}", cpu.registers[Register::E as usize] as char);
+            }
+        }
+
         if cpu.pc() == 0x00 {
-            println!("finish");
+            println!("\nfinish\n");
             break;
         }
     }

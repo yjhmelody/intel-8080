@@ -48,6 +48,22 @@ impl CPU {
     }
 
     #[inline]
+    fn imm_u8(&mut self) -> u8 {
+        let res = self.data[self.pc() + 1];
+        self.pc += 1;
+        res
+    }
+
+    #[inline]
+    fn imm_u16(&mut self) -> u16 {
+        let res = self.data[self.pc() + 1];
+        let res2 = self.data[self.pc() + 2];
+        let res = Self::compose_to_u16(res, res2);
+        self.pc += 2;
+        res
+    }
+
+    #[inline]
     pub fn sp(&self) -> usize {
         self.sp as usize
     }
@@ -127,47 +143,30 @@ impl CPU {
         self.pc = Self::compose_to_u16(self.data[self.pc() - 1], self.data[self.pc() - 2]);
     }
 
-    #[inline]
     fn inc(val1: u8, val2: u8) -> (u8, u8) {
-        let mut val1 = val1;
-        let (val2, b) = val2.overflowing_add(1);
-        if b {
-            val1 += 1;
-        }
-        (val1, val2)
+        let data = Self::compose_to_u16(val1, val2);
+        let res = data.wrapping_add(1);
+        Self::decompose_to_u8(res)
     }
 
-    #[inline]
     fn dec(val1: u8, val2: u8) -> (u8, u8) {
-        let mut val1 = val1;
-        let (val2, b) = val2.overflowing_sub(1);
-        if b {
-            val1 -= 1;
-        }
-        (val1, val2)
+        let data = Self::compose_to_u16(val1, val2);
+        let res = data.wrapping_sub(1);
+        Self::decompose_to_u8(res)
     }
 
     #[inline]
     fn update_zero_flag(&mut self, val: u8) {
-        if val == 0 {
-            self.flag.set_zero_flag(true);
-        } else {
-            self.flag.set_zero_flag(false);
-        }
+        self.flag.set_zero_flag(val == 0);
     }
 
     #[inline]
     fn update_sign_flag(&mut self, val: u8) {
-        if val > 0b0111_1111 {
-            self.flag.set_sign_flag(true);
-        } else {
-            self.flag.set_sign_flag(false);
-        }
+        self.flag.set_sign_flag(val > 0b0111_1111);
     }
 
     #[inline]
     fn update_carry_flag_with_carry(&mut self, val1: u8, val2: u8, carry: u8) {
-        use std::u16;
         if u16::from(val1) + u16::from(val2) + u16::from(carry) > 0xff {
             self.flag.set_carry_flag(true);
         } else {
@@ -188,12 +187,10 @@ impl CPU {
         );
     }
 
+    #[inline]
     fn update_parity_flag(&mut self, val: u8) {
-        if val.count_ones() & 0b0000_0001 == 0 {
-            self.flag.set_parity_flag(true);
-        } else {
-            self.flag.set_parity_flag(false);
-        }
+        self.flag
+            .set_parity_flag(val.count_ones() & 0b0000_0001 == 0);
     }
 
     fn stack_push_u8(&mut self, val: u8) {
@@ -234,10 +231,12 @@ impl CPU {
     }
 
     fn device_input(&mut self, device: &mut Device, port: u8) -> u8 {
+        //todo
         device.input(port)
     }
 
     fn device_output(&mut self, device: &mut Device, port: u8, data: u8) {
+        //todo
         device.output(port, data);
     }
 
@@ -405,27 +404,19 @@ impl CPU {
                 if opcode.get_rp_num_2() != 0b11 {
                     let reg1 = (opcode.get_rp_num_2() << 1) as usize;
                     let reg2 = (opcode.get_rp_num_2() << 1) as usize + 1;
-
-                    let (res1, b) =
-                        self.registers[Register::L as usize].overflowing_add(self.registers[reg2]);
-                    self.registers[Register::L as usize] = res1;
-
-                    if b {
-                        let (res2, b) = self.registers[reg1].overflowing_add(1);
-                        self.flag.set_carry_flag(b);
-                        let (res3, b) = res2.overflowing_add(self.registers[Register::H as usize]);
-                        self.flag.set_carry_flag(b);
-                        self.registers[Register::H as usize] = res3;
-                    } else {
-                        let (res2, b) = self.registers[Register::H as usize]
-                            .overflowing_add(self.registers[reg1]);
-
-                        self.flag.set_carry_flag(b);
-                        self.registers[Register::H as usize] = res2;
-                    }
+                    let val1 = Self::compose_to_u16(self.registers[reg1], self.registers[reg2]);
+                    let l = self.registers[Register::L as usize];
+                    let h = self.registers[Register::H as usize];
+                    let val2 = Self::compose_to_u16(h, l);
+                    let res = val1.wrapping_add(val2);
+                    self.flag.set_carry_flag(val1 > 0xFFFF - val2);
+                    let (h, l) = Self::decompose_to_u8(res);
+                    self.registers[Register::H as usize] = h;
+                    self.registers[Register::L as usize] = l;
                 } else {
-                    let (h, l) =
-                        Self::decompose_to_u8(self.memory_address().wrapping_add(self.sp()) as u16);
+                    let (h, l) = Self::decompose_to_u8(
+                        (self.memory_address() as u16).wrapping_add(self.sp() as u16),
+                    );
                     self.registers[Register::H as usize] = h;
                     self.registers[Register::L as usize] = l;
                 }
@@ -877,7 +868,7 @@ impl CPU {
                 self.pc += 1;
 
                 // mov
-                if (other as usize & 0b1100_0000) == 1 << 6 {
+                if (other as u8 & 0b1100_0000) == 1 << 6 {
                     let dst = opcode.get_dest_num();
                     let src = opcode.get_src_num();
 
@@ -887,7 +878,7 @@ impl CPU {
                     }
                 }
 
-                let alu = other as usize & 0b1111_1000;
+                let alu = other as u8 & 0b1111_1000;
                 let reg = opcode.get_src_num();
                 let data = self.register_or_memory_data(reg);
                 // Condition bits affected: Carry, Sign, Zero, Parity, Auxiliary Carry
@@ -938,7 +929,8 @@ impl CPU {
                 // ana
                 else if alu == 0b1010_0000 {
                     self.flag.set_carry_flag(false);
-                    self.flag.set_auxiliary_carry_flag(((self.acc | data) & 0x08) != 0);
+                    self.flag
+                        .set_auxiliary_carry_flag(((self.acc | data) & 0x08) != 0);
                     self.acc &= data;
                     self.update_zero_flag(self.acc);
                     self.update_sign_flag(self.acc);

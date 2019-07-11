@@ -61,6 +61,8 @@ impl Flag {
     pub fn value(&self) -> u8 {
         self.0
     }
+
+    #[inline]
     pub fn set_value(&mut self, val: u8) {
         self.0 = val;
     }

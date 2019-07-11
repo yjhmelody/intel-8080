@@ -69,11 +69,6 @@ impl CPU {
     }
 
     #[inline]
-    pub fn set_data(&mut self, data: Vec<u8>) {
-        self.data = data;
-    }
-
-    #[inline]
     pub fn set_value(&mut self, addr: usize, val: u8) {
         self.data[addr] = val;
     }
@@ -85,7 +80,7 @@ impl CPU {
 
     #[inline]
     pub fn make_address(val1: u8, val2: u8) -> usize {
-        (val1 as usize) << 8 | (val2 as usize)
+        Self::compose_to_u16(val1, val2) as usize
     }
 
     #[inline]
@@ -162,7 +157,7 @@ impl CPU {
 
     #[inline]
     fn update_sign_flag(&mut self, val: u8) {
-        self.flag.set_sign_flag(val > 0b0111_1111);
+        self.flag.set_sign_flag(val & 0b1000_0000 != 0);
     }
 
     #[inline]
@@ -415,7 +410,7 @@ impl CPU {
                     self.registers[Register::L as usize] = l;
                 } else {
                     let (h, l) = Self::decompose_to_u8(
-                        (self.memory_address() as u16).wrapping_add(self.sp() as u16),
+                        (self.memory_address() as u16).wrapping_add(self.sp),
                     );
                     self.registers[Register::H as usize] = h;
                     self.registers[Register::L as usize] = l;
@@ -981,6 +976,7 @@ impl CPU {
             self.handle_interrupt();
             return;
         }
+//        dbg!(Opcode::from(self.data[self.pc()]));
         self.execute(Opcode::from(self.data[self.pc()]));
     }
 
@@ -1496,7 +1492,7 @@ mod tests {
         assert_eq!(cpu.flag.carry_flag(), false);
         assert_eq!(cpu.flag.parity_flag(), true);
         assert_eq!(cpu.flag.sign_flag(), false);
-        //        assert_eq!(cpu.flag.auxiliary_flag(), false);
+        assert_eq!(cpu.flag.auxiliary_flag(), false);
         assert_eq!(cpu.acc, 0x3f);
     }
 
